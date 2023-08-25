@@ -3,8 +3,10 @@
 (define countdown
   (λ (n)
     (cond
-      ((zero? n) cons 0 null)
+      ((zero? n) (cons 0 null))
       (else (cons n (countdown (sub1 n)))))))
+
+(countdown 5)
 
 (define insertL
   (λ (x y l)
@@ -15,13 +17,13 @@
 
 (insertL 'x 'y '(x z z x y x))
 
-(define remv-1st
+(define remove-from
   (λ (x l)
     (cond
       ((null? l) null)
       ; Do not remove others
       ((eqv? x (car l)) (cdr l))
-      (else (cons (car l)(remv-1st x (cdr l)))))))
+      (else (cons (car l)(remove-from x (cdr l)))))))
 
 (define filter-out
   (λ (pred? l)
@@ -93,3 +95,25 @@
 ; ((w x) y (z)) is equal to
 ; ((w . (x . ())) . (y . ((z . ()))))
 
+(define binary->natural
+  (λ (num)
+    (cond
+      ((null? num) 0)
+      (else (+ (car num) (* 2 (binary->natural (cdr num))))))))
+
+(binary->natural '(1 1 1 1 1 1 1 1 1 1 1 1 1))
+
+(define div
+  (λ (m n)
+    (cond
+      ((zero? m) 0)
+      (else (add1 (div (- m n) n))))))
+
+
+(define append-map
+  (λ (proc list)
+    (cond
+      ((null? list) null)
+      (else (append (proc (car list)) (append-map proc (cdr list)))))))
+
+(append-map countdown (countdown 5))
