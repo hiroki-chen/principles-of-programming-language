@@ -117,3 +117,20 @@
       (else (append (proc (car list)) (append-map proc (cdr list)))))))
 
 (append-map countdown (countdown 5))
+
+(define contains?
+  (λ (elem l)
+    (cond
+      ((null? l) #f)
+      ((eqv? elem (car l)) #t)
+      (else (contains? elem (cdr l))))))
+
+(define set-difference
+  (λ (lhs rhs)
+    (cond
+      ((null? lhs) null)
+      ((contains? (car lhs) rhs) (set-difference (cdr lhs) rhs))
+      (else (cons (car lhs) (set-difference (cdr lhs) rhs))))))
+
+(set-difference '(1 2 3 4 5) '(2 6 4 8))
+
