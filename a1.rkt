@@ -139,6 +139,8 @@
 
 (set-difference '(1 2 3 4 5) '(2 6 4 8))
 
+; 17. The Ackermann function.
+
 (define powerset
   (λ (l)
     (cond
@@ -163,3 +165,15 @@
   (λ (l) (cartesian-product-helper (car l) (car (cdr l)))))
 
 (cartesian-product '((5 4) (3 2 1)))
+
+(define C (λ (n) (letrec ([foo 
+            (λ (n) (cond
+                     ((eqv? n 1) n)
+                     (else (cond
+                             ((even? n) (foo (div n 2)))
+                             (else (foo (add1 (* 3 n))))))))]) (foo n))))
+
+;(print-reader-abbreviations #f)
+;(print-as-expression #f)
+
+(define quine ((λ (input) (display (list input input))) '(λ (input) (display (list input input)))))
