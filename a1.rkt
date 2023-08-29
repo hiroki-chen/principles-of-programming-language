@@ -141,6 +141,36 @@
 
 ; 17. The Ackermann function.
 
+(define G
+  (λ (i)
+    (cond
+      ((zero? i)
+       (λ (n m)
+         (cond
+           ((zero? m) n)
+           (else (add1 ((G 0) n (sub1 m)))))))
+      ((zero? (sub1 i))
+       (λ (n m)
+         (cond
+           ((zero? m) 0)
+           (else ((G 0) n ((G 1) n (sub1 m)))))))
+      (else
+       (λ (n m)
+         (cond
+           ((zero? m) 1)
+           (else
+            ((G (sub1 i)) n ((G i) n (sub1 m))))))))))
+
+
+(define G-1
+  (λ (i)
+    (λ (n m)
+      (cond
+        ((zero? i) (cond
+                     ((zero? m) n)
+                     (else (add1 ((G 0) n (sub1 m))))))))))
+
+
 (define powerset
   (λ (l)
     (cond
