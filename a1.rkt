@@ -168,8 +168,54 @@
       (cond
         ((zero? i) (cond
                      ((zero? m) n)
-                     (else (add1 ((G 0) n (sub1 m))))))))))
+                     (else (add1 ((G 0) n (sub1 m))))))
+        ((zero? (sub1 i)) (cond
+                           ((zero? m) 0)
+                           (else ((G 0) n ((G 1) n (sub1 m))))))
+        (else (cond
+                ((zero? m) 1)
+                (else
+                 ((G (sub1 i)) n ((G i) n (sub1 m))))))))))
 
+(define G-2
+  (λ (i)
+    (λ (n m)
+      (cond
+        ((zero? m) (cond
+                     ((zero? i) n)
+                     ((zero? (sub1 i)) 0)
+                     (else 1)))
+        ((zero? i) (add1 ((G 0) n (sub1 m))))
+        ((zero? (sub1 i)) ((G (sub1 i)) n ((G i) n (sub1 m))))
+        (else ((G (sub1 i)) n ((G i) n (sub1 m))))))))
+
+(define G-3
+  (λ (i)
+    (λ (n m)
+      (cond
+        ((zero? m) (cond
+                     ((zero? i) n)
+                     ((zero? (sub1 i)) 0)
+                     (else 1)))
+        ((zero? i) (add1 ((G 0) n (sub1 m))))
+        (else ((G (sub1 i)) n ((G i) n (sub1 m))))))))
+
+
+; Check that G-1 <=> G
+(eqv? ((G-1 0) 10 10) ((G 0) 10 10))
+(eqv? ((G-1 1) 10 10) ((G 1) 10 10))
+(eqv? ((G-1 2) 10 2) ((G 2) 10 2))
+(display '---------)
+; Check that G-2 <=> G
+(eqv? ((G-2 0) 10 10) ((G 0) 10 10))
+(eqv? ((G-2 1) 10 10) ((G 1) 10 10))
+(eqv? ((G-2 2) 10 2) ((G 2) 10 2))
+(display '---------)
+; Check that G-3 <=> G
+(eqv? ((G-3 0) 10 10) ((G 0) 10 10))
+(eqv? ((G-3 1) 10 10) ((G 1) 10 10))
+(eqv? ((G-3 2) 10 2) ((G 2) 10 2))
+(display '---------)
 
 (define powerset
   (λ (l)
