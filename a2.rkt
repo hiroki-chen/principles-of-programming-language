@@ -1,4 +1,6 @@
 #lang racket
+
+(require racket/trace)
 (define list-ref
   (lambda (ls n)
     (letrec
@@ -30,9 +32,8 @@
       ((assv x s) (cond
                     ((symbol? (cdr (assv x s))) (walk-symbol (cdr (assv x s)) (remv (assv x s) s)))
                     (else (cdr (assv x s)))))
+      ((symbol? x) x)
       (else #f))))
-
-(walk-symbol 'd '((a . 5) (b    1 2)  (c . a) (e . c) (d . e)))
 
 (define lambda-exp?
   (λ (E)
@@ -41,7 +42,7 @@
           (λ (e)
             (match e
               [`,y #:when (symbol? y) #t]
-              [`(lambda (,x) ,body) (p body)]
+              [`(lambda (,x) ,body) #:when (symbol? x) (p body)]
               [`(,rator, rand) (and (p rator) (p rand))]
               [else #f]))])
       (p E))))
@@ -78,7 +79,7 @@
   (λ (x e)
     (match e
       [`,y #:when (symbol? y) #f]
-      [`(lambda (,y) ,body) (and (eqv? x y) (var-occurs-free? x body))]
+      [`(lambda (,y) ,body) (or (and (eqv? x y) (var-occurs-free? x body)) (var-occurs-bound? x body))]
       [`(,rator ,rand) (or (var-occurs-bound? x rator) (var-occurs-bound? x rand))])))
 
 (define unique-free-vars
@@ -91,10 +92,12 @@
 (define unique-bound-vars
   (λ (e)
     (match e
-      [`,y #:when (symbol? y) (cons y null)]
-      [`(lambda (,x) ,body) (filter (λ (elem) (eqv? x elem)) (unique-free-vars body))]
+      [`,y #:when (symbol? y) '()]
+      [`(lambda (,x) ,body)
+       (cond
+         ((var-occurs? x body) (union (cons x null) (unique-bound-vars body)))
+         (else (unique-bound-vars body)))]
       [`(,rator ,rand) (union (unique-bound-vars rator) (unique-bound-vars rand))])))
-(unique-bound-vars '((lambda (x) ((x y) e)) (lambda (c) (x (lambda (x) (x (e c)))))))
 
 (define index
   (λ (var ls)
@@ -115,12 +118,30 @@
       (`(,rator ,rand)
        `(,(lex rator ls) ,(lex rand ls))))))
 
-(lex '(lambda (x) x) '(x, y))
-
 (define e1=e2?
   (λ (e1 e2)
     (match `(,e1 ,e2)
       [`(,y1, y2) #:when (eqv? y1 y2) #t]
-      [`((lambda (,x1) ,body1) (lambda (,x2) ,body2))
+      [`((λ (,x1) ,body1) (lambda (,x2) ,body2))
         (e1=e2? (lex body1 (unique-bound-vars e1)) (lex body2 (unique-bound-vars e2)))]
       [`((,rator1 ,rand1) (,rator2 ,rand2)) (and (e1=e2? rator1 rator2) (e1=e2? rand1 rand2))])))
+
+(define t-fact
+  (λ (n result)
+    (cond
+      ((zero? n) result)
+      (else (t-fact (sub1 n) (* n result))))))
+
+(define walk-symbol-update
+  (λ (x l)
+    (cond
+      ; find the associated value and update the boxed value.
+      ((assv x l) (let
+                      [(v (assv x l))]
+                    (cond
+                      ((symbol? (unbox (cdr v))) (begin
+                                                   (set-box! (cdr v) (walk-symbol-update (unbox (cdr v)) l))
+                                                   (unbox (cdr v))))
+                      (else (unbox (cdr v))))))
+      ((symbol? x) x)
+      (else #f))))
