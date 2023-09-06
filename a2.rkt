@@ -113,25 +113,28 @@
     (match e
       (`,y #:when (symbol? y)
            (index y ls))
-      (`(lambda (,x) ,body) #:when (symbol? x)
-       `(lambda ,(lex body (cons x ls))))
+      (`(λ (,x) ,body) #:when (symbol? x)
+       `(λ ,(lex body (cons x ls))))
       (`(,rator ,rand)
        `(,(lex rator ls) ,(lex rand ls))))))
 
 (define e1=e2?
   (λ (e1 e2)
-    (match `(,e1 ,e2)
-      [`(,y1, y2) #:when (eqv? y1 y2) #t]
-      [`((λ (,x1) ,body1) (lambda (,x2) ,body2))
-        (e1=e2? (lex body1 (unique-bound-vars e1)) (lex body2 (unique-bound-vars e2)))]
-      [`((,rator1 ,rand1) (,rator2 ,rand2)) (and (e1=e2? rator1 rator2) (e1=e2? rand1 rand2))])))
+    (letrec ([p (λ (e1 e2)
+               (match `(,e1 ,e2)
+                 [`(,y1 ,y2) #:when (and (natural? y1) (natural? y2)) (eqv? y1 y2)]
+                 [`((λ ,body1) (λ ,body2))
+                  (p body1 body2)]
+                 [`((,rator1 ,rand1) (,rator2 ,rand2)) (and (p rator1 rator2) (p rand1 rand2))]))])
+      (p (lex e1 '()) (lex e2 '())))))
 
 (define t-fact
   (λ (n result)
-    (cond
-      ((zero? n) result)
+    (match n
+      (`,n #:when (zero? n) result)
       (else (t-fact (sub1 n) (* n result))))))
-
+(trace t-fact)
+(t-fact 5 1)
 (define walk-symbol-update
   (λ (x l)
     (cond
@@ -145,3 +148,14 @@
                       (else (unbox (cdr v))))))
       ((symbol? x) x)
       (else #f))))
+
+(define var-occurs-both?
+  (λ (x e)
+    (match e
+      [`,y #:when (symbol? y) (cons (eqv? y x) #f)]
+      [`(lambda (,y) ,body) (let ([v (var-occurs-both? x body)])
+                              (cons (and (not (eqv? y x)) (car v)) (or (and (eqv? y x) (car v)) (cdr v))))]
+      [`(,rator ,rand) (let ([lhs (var-occurs-both? x rator)]
+                             [rhs (var-occurs-both? x rand)])
+                         (cons (or (car lhs) (car rhs))
+                               (or (cdr lhs) (cdr rhs))))])))
