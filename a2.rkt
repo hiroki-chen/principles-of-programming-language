@@ -118,6 +118,9 @@
       (`(,rator ,rand)
        `(,(lex rator ls) ,(lex rand ls))))))
 
+(lex '(λ (y) (λ (x) y))
+       '())
+
 (define e1=e2?
   (λ (e1 e2)
     (letrec ([p (λ (e1 e2)
