@@ -22,6 +22,17 @@
       [`(,rator ,rand) `(,(lex rator l) ,(lex rand l))])))
 
 
+(define extend-env
+  (λ (x arg env)
+    (λ (y)
+      (cond
+        ((eqv? y x) arg)
+        (else(env y))))))
+
+; the support for `set!` and `begin2`.
+;; TODO!!!
+(define value-of-ext
+  (λ (e env) e))
 
 (require racket/trace)
 ; representation-dependent version
@@ -31,12 +42,14 @@
       ; literals
       [`,b #:when (boolean? b) b]
       [`,n #:when (number? n) n]
-      [`(if (,c) ,b1 ,b2) (cond
-                          ((value-of c env) (value-of b1 env))
+      [`(if (zero? ,rand) ,b1 ,b2) (cond
+                          ((zero? (value-of rand env)) (value-of b1 env))
                           (else (value-of b2 env)))]
+      ; value binding
+      [`(let ([,var ,e1]) ,e2) #:when (symbol? var)
+                                   (value-of e2 (extend-env var (value-of e1 env) env)) ]
       ; simple functions
-      [`(zero? ,rand1 ,rand2) (zero? (value-of rand1 env) (value-of rand2 env))]
-      [`(sub1 ,rand1 ,rand2) (sub1 (value-of rand1 env) (value-of rand2 env))]
+      [`(sub1 ,rand) (sub1 (value-of rand env))]
       [`(* ,rand1 ,rand2) (* (value-of rand1 env) (value-of rand2 env))]
       [`(lambda (,x) ,body)
        #:when (symbol? x)
@@ -49,30 +62,52 @@
                      (else (env y))))))]
       [`,y #:when (symbol? y) (env y)]
       ; application
-      [`(,rator ,rand) (value-of rator env) (value-of rand env)])))
+      [`(,rator ,rand) ((value-of rator env) (value-of rand env))]
+      [_ (value-of-ext e env)]
+      )))
 
-(trace value-of)
-(value-of
-   '((lambda (x) (if (zero? x)
-                     12
-                     47))
-     0)
-   (lambda (y) (error 'value-of "unbound variable ~s" y)))
 (define empty-env-fn
-  (λ () '()))
+  (λ () `empty-env-fn))
 
 (define extend-env-fn
-  (λ (env s) '()))
+  (λ (key value env) `(extend-env-fn ,key ,value ,env)))
 
 (define apply-env-fn
-  (λ () '()))
-
-(define apply-clos-fn
-  (λ () '()))
+  (λ (env y)
+    (match env
+      [`(empty-env-fn) (error 'value-of "unbound variable ~s" y)]
+      [`(extend-env-fn ,key ,value ,env) (cond
+                                           ((eqv? key y) value)
+                                           (else (apply-env-fn env y)))])))
 
 (define make-clos-fn
-  (λ () '()))
+  (λ (x body env)
+   `(make-clos-fn ,x ,body ,env)))
+
+(define apply-clos-fn
+  (λ (f arg)
+    (match f
+    [`(make-clos-fn ,x ,body ,env) (value-of-fn body (extend-env-fn x arg env))])))
 
 ; representation-independent version
 (define value-of-fn
-  (λ (e env err) e))
+  (λ (e env)
+    (match e
+      ; literals
+      [`,b #:when (boolean? b) b]
+      [`,n #:when (number? n) n]
+      [`(if (,c ,rand) ,b1 ,b2) (cond
+                          ((c (value-of rand env)) (value-of b1 env))
+                          (else (value-of b2 env)))]
+      ; value binding
+      [`(let ([,var ,e1]) ,e2) #:when (symbol? var)
+                                   (value-of e2 (extend-env var (value-of e1 env) env)) ]
+      ; simple functions
+      [`(sub1 ,rand) (sub1 (value-of rand env))]
+      [`(* ,rand1 ,rand2) (* (value-of rand1 env) (value-of rand2 env))]
+      [`,y #:when (symbol? y) (apply-env-fn env y)]
+      ; make closure and apply it
+      [`(lambda (,x) ,body) #:when (symbol? x) (make-clos-fn x body env)]
+      ; application
+      [`(,rator ,rand) ((value-of rator env) (value-of rand env))]
+      )))
