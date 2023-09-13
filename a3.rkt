@@ -123,3 +123,57 @@
       ; application
       [`(,rator ,rand) (apply-clos-fn (value-of-fn rator env) (value-of-fn rand env))]
       )))
+ (value-of
+     '(* (begin2 1 1) 3)
+     (lambda (y) (error 'value-of "unbound variable ~s" y)))
+
+(define apply-env-lex
+  (λ (env e)
+    (cond
+      ((zero? e) (car env))
+      (else (apply-env-lex (cdr env) (sub1 e))))))
+
+(define extend-env-lex
+  (λ (var env) (cons var env)))
+
+(define value-of-lex
+  (lambda (exp env)
+    (match exp
+      [`(const ,expr) expr]
+      [`(mult ,x1 ,x2) (* (value-of-lex x1 env) (value-of-lex x2 env))]
+      [`(zero ,x) (zero? (value-of-lex x env))]
+      (`(sub1 ,body) (sub1 (value-of-lex body env)))
+      (`(if ,t ,c ,a) (if (value-of-lex t env) (value-of-lex c env) (value-of-lex a env)))
+      (`(var ,num) (apply-env-lex env num))
+      (`(lambda ,body) (lambda (a) (value-of-lex body (extend-env-lex a env))))
+      (`(,rator ,rand) ((value-of-lex rator env) (value-of-lex rand env))))))
+ 
+(define empty-env-lex
+  (lambda ()
+    (lambda (y) (error 'value-of "unbound variable ~s" y))))
+
+(define c0 (lambda (f) (lambda (x) x)))
+(define c5 (lambda (f) (lambda (x) (f (f (f (f (f x))))))))
+
+; Equivalent to the boolean type in MLTT => elim(T, c_t, c_f) \equiv c_t.
+(define church-true (λ (x) (λ (y) x)))
+(define church-false (λ (x) (λ (y) y)))
+
+(define succ
+  (λ (n)
+    (λ (a)
+      (λ (b)
+        (a ((n a) b))))))
+
+(define func
+    (λ (p)
+      (λ (z)
+        ((z (succ (p church-true))) (p church-true)))))
+
+; Construct a 'pair' (n + 1, n) from (n, n - 1) and choose the second one
+; using church-false.
+(define csub1
+  (λ (n)
+    (((n func) (λ (z) ((z c0) c0))) church-false)))
+
+(((csub1 c5) add1) 0)

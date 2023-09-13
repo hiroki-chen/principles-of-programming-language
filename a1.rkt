@@ -8,6 +8,22 @@
 
 (countdown 5)
 
+
+(define append
+  (λ (l1 l2)
+    (cond
+      ((null? l1) l2)
+      (else (cons (car l1) (append (cdr l1) l2))))))
+
+(define flat
+  (λ (ls)
+    (cond
+      ((null? ls) '())
+      ((pair? (car ls))
+       (append (flat (car ls)) (flat (cdr ls))))
+      (else (cons (car ls) (flat (cdr ls)))))))
+(flat '((a b) (c d)))
+
 (define insertL
   (λ (x y l)
     (cond
@@ -58,12 +74,6 @@
 (define list-index-ofv
   (λ (x l)
     (list-index-ofv-helper 0 x l)))
-
-(define append
-  (λ (l1 l2)
-    (cond
-      ((null? l1) l2)
-      (else (cons (car l1) (append (cdr l1) l2))))))
 
 (append '(a b c) '(cat dog))
 

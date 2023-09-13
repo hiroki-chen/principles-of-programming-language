@@ -17,22 +17,22 @@
 
 (insertL 'x 'y '(x z z x y x))
 
-(define remove-from
+(define remv-1st
   (λ (x l)
     (cond
       ((null? l) null)
       ; Do not remove others
       ((eqv? x (car l)) (cdr l))
-      (else (cons (car l)(remove-from x (cdr l)))))))
+      (else (cons (car l)(remv-1st x (cdr l)))))))
 
-(define filter-out
+(define remove-from
   (λ (pred? l)
     (cond
       ((null? l) null)
-      ((pred? (car l)) (filter-out pred? (cdr l)))
-      (else (cons (car l) (filter-out pred? (cdr l)))))))
+      ((pred? (car l)) (remove-from pred? (cdr l)))
+      (else (cons (car l) (remove-from pred? (cdr l)))))))
 
-(filter-out even? '(1 2 3 4 5 6))
+;(filter-out even? '(1 2 3 4 5 6))
 
 (define map
   (λ (f l)
@@ -83,18 +83,24 @@
 
 (repeat '(4 8 11) 4)
 
-(define same-list*
+(define same-lists*
   (λ (lhs rhs)
     (cond
-      ((null? lhs) (cond
-                     ((null? rhs) #t)
-                     (else #f)))
-      ((eqv? (car lhs) (car rhs)) (same-list* (cdr lhs) (cdr rhs)))
+      ((and (null? lhs) (null? rhs)) #t)
+      ((or (null? lhs) (null? rhs)) #f)
+      ((eqv? (car lhs) (car rhs)) (same-lists* (cdr lhs) (cdr rhs)))
+      ((and (pair? (car lhs)) (pair? (car rhs)))
+       (cond
+         ((same-lists* (car lhs) (car rhs)) (same-lists* (cdr lhs) (cdr rhs)))
+         (else #f)))
       (else #f))))
 
 ; ((w x) y (z)) is equal to
 ; ((w . (x . ())) . (y . ((z . ()))))
-
+(same-lists* '(1 2 3 4 5) '(1 2 3 4 5))
+(same-lists* '(1 2 3 4) '(1 2 3 4 5))
+(same-lists* '(a (b c) d) '(a (b) c d))
+(same-lists* '((a) b (c d) d) '((a) b (c d) d))
 (define binary->natural
   (λ (num)
     (cond
@@ -108,7 +114,6 @@
     (cond
       ((zero? m) 0)
       (else (add1 (div (- m n) n))))))
-
 
 (define append-map
   (λ (proc list)
@@ -134,3 +139,117 @@
 
 (set-difference '(1 2 3 4 5) '(2 6 4 8))
 
+; 17. The Ackermann function.
+
+(define G
+  (λ (i)
+    (cond
+      ((zero? i)
+       (λ (n m)
+         (cond
+           ((zero? m) n)
+           (else (add1 ((G 0) n (sub1 m)))))))
+      ((zero? (sub1 i))
+       (λ (n m)
+         (cond
+           ((zero? m) 0)
+           (else ((G 0) n ((G 1) n (sub1 m)))))))
+      (else
+       (λ (n m)
+         (cond
+           ((zero? m) 1)
+           (else
+            ((G (sub1 i)) n ((G i) n (sub1 m))))))))))
+
+
+(define G-1
+  (λ (i)
+    (λ (n m)
+      (cond
+        ((zero? i) (cond
+                     ((zero? m) n)
+                     (else (add1 ((G 0) n (sub1 m))))))
+        ((zero? (sub1 i)) (cond
+                           ((zero? m) 0)
+                           (else ((G 0) n ((G 1) n (sub1 m))))))
+        (else (cond
+                ((zero? m) 1)
+                (else
+                 ((G (sub1 i)) n ((G i) n (sub1 m))))))))))
+
+(define G-2
+  (λ (i)
+    (λ (n m)
+      (cond
+        ((zero? m) (cond
+                     ((zero? i) n)
+                     ((zero? (sub1 i)) 0)
+                     (else 1)))
+        ((zero? i) (add1 ((G 0) n (sub1 m))))
+        ((zero? (sub1 i)) ((G (sub1 i)) n ((G i) n (sub1 m))))
+        (else ((G (sub1 i)) n ((G i) n (sub1 m))))))))
+
+(define G-3
+  (λ (i)
+    (λ (n m)
+      (cond
+        ((zero? m) (cond
+                     ((zero? i) n)
+                     ((zero? (sub1 i)) 0)
+                     (else 1)))
+        ((zero? i) (add1 ((G 0) n (sub1 m))))
+        (else ((G (sub1 i)) n ((G i) n (sub1 m))))))))
+
+
+; Check that G-1 <=> G
+(eqv? ((G-1 0) 10 10) ((G 0) 10 10))
+(eqv? ((G-1 1) 10 10) ((G 1) 10 10))
+(eqv? ((G-1 2) 10 2) ((G 2) 10 2))
+(display '---------)
+; Check that G-2 <=> G
+(eqv? ((G-2 0) 10 10) ((G 0) 10 10))
+(eqv? ((G-2 1) 10 10) ((G 1) 10 10))
+(eqv? ((G-2 2) 10 2) ((G 2) 10 2))
+(display '---------)
+; Check that G-3 <=> G
+(eqv? ((G-3 0) 10 10) ((G 0) 10 10))
+(eqv? ((G-3 1) 10 10) ((G 1) 10 10))
+(eqv? ((G-3 2) 10 2) ((G 2) 10 2))
+(display '---------)
+
+(define powerset
+  (λ (l)
+    (cond
+      ((null? l) '(()))
+      ; (car l) [...powerset of the rest set]
+      ; [...rest] ++ [(car l) + [each element in the list]].
+      (else (append (powerset (cdr l)) (map (λ (sb) (cons (car l) sb)) (powerset (cdr l))))))))
+
+(define do-cartesian-single
+  (λ (elem l)
+    (cond
+      ((null? l) null)
+      (else (cons (list elem (car l)) (do-cartesian-single elem (cdr l)))))))
+
+(define cartesian-product-helper
+  (λ (lhs rhs)
+    (cond
+      ((null? lhs) null)
+      (else (append (do-cartesian-single (car lhs) rhs) (cartesian-product-helper (cdr lhs) rhs))))))
+
+(define cartesian-product
+  (λ (l) (cartesian-product-helper (car l) (car (cdr l)))))
+
+(cartesian-product '((5 4) (3 2 1)))
+
+(define C (λ (n) (letrec ([foo 
+            (λ (n) (cond
+                     ((eqv? n 1) n)
+                     (else (cond
+                             ((even? n) (foo (div n 2)))
+                             (else (foo (add1 (* 3 n))))))))]) (foo n))))
+
+;(print-reader-abbreviations #f)
+;(print-as-expression #f)
+
+(define quine ((λ (input) (display (list input input))) '(λ (input) (display (list input input)))))
