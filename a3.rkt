@@ -177,3 +177,4 @@
     (((n func) (λ (z) ((z c0) c0))) church-false)))
 
 (((csub1 c5) add1) 0)
+(((csub1 c0) add1) 0)
