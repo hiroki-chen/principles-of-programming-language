@@ -67,36 +67,123 @@
                                     ((eqv? x y) val)
                                     (else (apply-env con y)))])))
 
-(define make-closure
+(define make-closure-cbv
   (λ (x body env)
-    `(make-closure (lambda (,x) ,body) ,env)))
+    `(make-closure-cbv (lambda (,x) ,body) ,env)))
+
+(define make-closure-cbr
+  (λ (x body env)
+    `(make-closure-cbr (lambda (,x) ,body) ,env)))
+
+(define make-closure-cbname
+  (λ (x body env)
+    `(make-closure-cbname (lambda (,x) ,body) ,env)))
+
+(define make-closure-cbneed
+  (λ (x body env)
+    `(make-closure-cbneed (lambda (,x) ,body) ,env)))
+
 
 (define apply-closure
   (λ (f arg)
     (match f
-      [`(make-closure (lambda (,x) ,body ,env))
-       (value-of body (extend-env x arg env))])))
+      [`(make-closure-cbv (lambda (,x) ,body) ,env)
+       (val-of-cbv body (extend-env env x arg))]
+      [`(make-closure-cbr (lambda (,x) ,body) ,env)
+       (val-of-cbr body (extend-env env x arg))]
+      [`(make-closure-cbname (lambda (,x) ,body) ,env)
+       (val-of-cbname body (extend-env env x arg))]
+      [`(make-closure-cbneed (lambda (,x) ,body) ,env)
+       (val-of-cbneed body (extend-env env x arg))]
+      )))
 
-(define value-of
+(define val-of-cbv
   (λ (exp env)
     (match exp
       [`,b #:when (boolean? b) b]
       [`,n #:when (number? n)  n]
-      [`(zero? ,n) (zero? (value-of n env))]
-      [`(sub1 ,n) (sub1 (value-of n env))]
-      [`(* ,n1 ,n2) (* (value-of n1 env) (value-of n2 env))]
-      [`(if ,test ,conseq ,alt) (if (value-of test env)
-                                  (value-of conseq env)
-                                  (value-of alt env))]
-      [`(begin2 ,e1 ,e2) (begin (value-of e1 env) (value-of e2 env))]
+      [`(zero? ,n) (zero? (val-of-cbv n env))]
+      [`(sub1 ,n) (sub1 (val-of-cbv n env))]
+      [`(* ,n1 ,n2) (* (val-of-cbv n1 env) (val-of-cbv n2 env))]
+      [`(if ,test ,conseq ,alt) (if (val-of-cbv test env)
+                                  (val-of-cbv conseq env)
+                                  (val-of-cbv alt env))]
+      [`(begin2 ,e1 ,e2) (begin (val-of-cbv e1 env) (val-of-cbv e2 env))]
       [`(set! ,x ,expr) #:when (symbol? x)
        (set-box! (apply-env env x)
-                 (value-of expr env))]
-      [`(random ,n) (random (value-of n env))]
-      [`,y #:when (symbol? y) (apply-env env y)]
-      [`(lambda (,x) ,body) (make-closure x body env)]
-      [`(,rator ,rand) (apply-closure (value-of rator env)
-                                      (value-of rand env))])))
+                 (val-of-cbv expr env))]
+      [`(random ,n) (random (val-of-cbv n env))]
+      [`,y #:when (symbol? y) (unbox (apply-env env y))]
+      [`(lambda (,x) ,body) (make-closure-cbv x body env)]
+      [`(,rator ,rand) (apply-closure (val-of-cbv rator env)
+                                      (box (val-of-cbv rand env)))])))
 
-(define value-of-cbv
-  (λ (e env) `()))
+(define val-of-cbr
+  (λ (exp env)
+    (match exp
+      [`,b #:when (boolean? b) b]
+      [`,n #:when (number? n)  n]
+      [`(zero? ,n) (zero? (val-of-cbr n env))]
+      [`(sub1 ,n) (sub1 (val-of-cbr n env))]
+      [`(* ,n1 ,n2) (* (val-of-cbr n1 env) (val-of-cbr n2 env))]
+      [`(if ,test ,conseq ,alt) (if (val-of-cbr test env)
+                                  (val-of-cbr conseq env)
+                                  (val-of-cbr alt env))]
+      [`(begin2 ,e1 ,e2) (begin (val-of-cbr e1 env) (val-of-cbr e2 env))]
+      [`(set! ,x ,expr) #:when (symbol? x)
+       (set-box! (apply-env env x)
+                 (val-of-cbr expr env))]
+      [`(random ,n) (random (val-of-cbr n env))]
+      [`,y #:when (symbol? y) (unbox (apply-env env y))]
+      [`(lambda (,x) ,body) (make-closure-cbr x body env)]
+      [`(,rator ,rand) #:when (symbol? rand)
+                       (apply-closure (val-of-cbr rator env)
+                                      (apply-env env rand))]
+      [`(,rator ,rand) (apply-closure (val-of-cbr rator env)
+                                      (box (val-of-cbr rand env)))])))
+
+(define val-of-cbname
+  (λ (exp env)
+    (match exp
+      [`,b #:when (boolean? b) b]
+      [`,n #:when (number? n)  n]
+      [`(zero? ,n) (zero? (val-of-cbname n env))]
+      [`(sub1 ,n) (sub1 (val-of-cbname n env))]
+      [`(* ,n1 ,n2) (* (val-of-cbname n1 env) (val-of-cbname n2 env))]
+      [`(if ,test ,conseq ,alt) (if (val-of-cbname test env)
+                                  (val-of-cbname conseq env)
+                                  (val-of-cbname alt env))]
+      [`(random ,n) (random (val-of-cbname n env))]
+      [`,y #:when (symbol? y) ((unbox (apply-env env y)))]
+      [`(lambda (,x) ,body) (make-closure-cbname x body env)]
+      [`(,rator ,rand) #:when (symbol? rand)
+                       (apply-closure (val-of-cbname rator env)
+                                      (apply-env env rand))]
+      [`(,rator ,rand) (apply-closure (val-of-cbname rator env)
+                                      (box (λ () (val-of-cbname rand env))))])))
+
+
+(define val-of-cbneed
+  (λ (exp env)
+    (match exp
+      [`,b #:when (boolean? b) b]
+      [`,n #:when (number? n)  n]
+      [`(zero? ,n) (zero? (val-of-cbneed n env))]
+      [`(sub1 ,n) (sub1 (val-of-cbneed n env))]
+      [`(* ,n1 ,n2) (* (val-of-cbneed n1 env) (val-of-cbneed n2 env))]
+      [`(if ,test ,conseq ,alt) (if (val-of-cbneed test env)
+                                  (val-of-cbneed conseq env)
+                                  (val-of-cbneed alt env))]
+      [`(random ,n) (random (val-of-cbneed n env))]
+      [`,y #:when (symbol? y) (let [(sym (apply-env env y))]
+                                (let [(v ((unbox sym)))]
+                                  (begin
+                                    (set-box! sym (λ () v))
+                                    v)))]
+      [`(lambda (,x) ,body) (make-closure-cbneed x body env)]
+      [`(,rator ,rand) #:when (symbol? rand)
+                       (apply-closure (val-of-cbneed rator env)
+                                      (apply-env env rand))]
+      [`(,rator ,rand) (apply-closure (val-of-cbneed rator env)
+                                      (box (λ () (val-of-cbneed rand env))))])))
+
