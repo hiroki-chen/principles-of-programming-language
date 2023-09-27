@@ -103,12 +103,24 @@
       [`,b #:when (boolean? b) b]
       [`,n #:when (number? n)  n]
       [`(zero? ,n) (zero? (val-of-cbv n env))]
+      [`(cons^ ,fst ,snd) (cons (box (λ () (val-of-cbv fst env)))
+                                (box (λ () (val-of-cbv snd env))))]
+      [`(cons ,fst ,snd) (cons (val-of-cbv fst env)
+                               (val-of-cbv snd env))]
+      [`(car ,ls) (car ls)]
+      [`(cdr ,ls) (cdr ls)]
+      [`(car^ ,ls) ((unbox (car (val-of-cbv ls env))))]
+      [`(cdr^ ,ls) ((unbox (cdr (val-of-cbv ls env))))]
+      [`(null? ,ls) (null? (val-of-cbv ls env))]
+      [`(add1 ,n) (add1 (val-of-cbv n env))]
+      [`'() '()]
       [`(sub1 ,n) (sub1 (val-of-cbv n env))]
       [`(* ,n1 ,n2) (* (val-of-cbv n1 env) (val-of-cbv n2 env))]
       [`(if ,test ,conseq ,alt) (if (val-of-cbv test env)
                                   (val-of-cbv conseq env)
                                   (val-of-cbv alt env))]
       [`(begin2 ,e1 ,e2) (begin (val-of-cbv e1 env) (val-of-cbv e2 env))]
+      [`(let ([,x ,val]) ,body) (val-of-cbv body (extend-env env x (box (val-of-cbv val env))))]
       [`(set! ,x ,expr) #:when (symbol? x)
        (set-box! (apply-env env x)
                  (val-of-cbv expr env))]
@@ -117,6 +129,8 @@
       [`(lambda (,x) ,body) (make-closure-cbv x body env)]
       [`(,rator ,rand) (apply-closure (val-of-cbv rator env)
                                       (box (val-of-cbv rand env)))])))
+
+
 
 (define val-of-cbr
   (λ (exp env)
@@ -187,3 +201,28 @@
       [`(,rator ,rand) (apply-closure (val-of-cbneed rator env)
                                       (box (λ () (val-of-cbneed rand env))))])))
 
+
+(define cons-test
+    '(let ((fix (lambda (f)
+                 ((lambda (x) (f (lambda (v) ((x x) v))))
+                  (lambda (x) (f (lambda (v) ((x x) v))))))))
+        (let ((map (fix (lambda (map)
+                          (lambda (f)
+                            (lambda (l)
+                               (if (null? l)
+                                   ; what does this '() mean?
+                                   '()
+                                   (cons^ (f (car^ l))
+                                          ((map f) (cdr^ l))))))))))
+          (let ((take (fix (lambda (take)
+                             (lambda (l)
+                               (lambda (n)
+                                 (if (zero? n)
+                                     '()
+                                      (cons (car^ l)
+                                            ((take (cdr^ l)) (sub1 n))))))))))
+            ((take ((fix (lambda (m)
+                           (lambda (i)
+                             (cons^ 1 ((map (lambda (x) (add1 x))) (m i)))))) 0)) 5)))))
+
+(val-of-cbv cons-test (empty-env))
