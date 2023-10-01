@@ -81,11 +81,10 @@
       ((zero? m) (k (add1 n)))
       ((zero? n) (ack-cps (sub1 m) 1 k))
       ; Eta-reduction
-      (else (ack-cps m (sub1 n) (λ (v) ack-cps (sub1 m) v k))))))
+      (else (ack-cps m (sub1 n) (λ (v) (ack-cps (sub1 m) v (λ (w) (k w)))))))))
 
 (require racket/trace)
 ;(trace ack-cps)
-;(ack-cps 2 2 (λ (v) v))
 
 (define fib-cps
   (λ (n k)
