@@ -1,5 +1,7 @@
 #lang racket
 
+(define id (λ (v) v))
+
 (define empty-k
   (λ ()
     (let ((once-only #f))
@@ -18,13 +20,9 @@
                                              (k (+ (car n) (* 2 v)))))))))
 
 (define star-cps
-  (λ (m)
-    (λ (n k)
-      (cond
-        ((zero? n) (k 0))
-        (else ((star-cps m) (sub1 n) (λ (v) (k (+ v m)))))))))
-
-;((star-cps 2) 3 (λ (v) v))
+  (λ (m k)
+    (k (λ (n k)
+         (k (* m n))))))
 
 (define times-cps
   (λ (ls k)
@@ -39,7 +37,7 @@
     (cond
       ((null? ls) (k 1))
       ((zero? (car ls)) 0)
-      (else (times-cps-shortcut (cdr ls) (λ (v) k (* (car ls) v)))))))
+      (else (times-cps-shortcut (cdr ls) (λ (v) (k (* (car ls) v))))))))
 
 (define remv-first-9*-cps
   (lambda (ls k)
@@ -47,16 +45,17 @@
       [(null? ls) (k ls)]
       [(pair? (car ls))
        (remv-first-9*-cps (car ls)
-                          ; v = remv (car ls)
-                          (λ (v)
-                            (cond
-                              ((equal? (car ls) v) (k v))
-                              (else (k (cons v (cdr ls)))))))]
+                          (λ (fst)
+                            (remv-first-9*-cps (cdr ls)
+                                               (λ (snd)
+                                                 (k (cond
+                                                   ((equal? (car ls) fst)
+                                                    (cons (car ls) snd))
+                                                   (else (cons fst (cdr ls)))))))))]
       [(eqv? (car ls) '9) (k (cdr ls))]
       [else (remv-first-9*-cps (cdr ls)
                                (λ (v)
                                  (k (cons (car ls) v))))])))
-
 
 (define cons-cell-count-cps
   (λ (ls k)
