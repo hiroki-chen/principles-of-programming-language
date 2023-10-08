@@ -139,11 +139,14 @@
       ((number? v) (unify-cps v u s k))
       ((pair? u)
        (unify-cps (find-cps (car u) s k) (find-cps (car v) s k) s
-                  (λ (s)
-                    (if (pair? v)
-                        (if s
-                            (unify-cps (find-cps (cdr u) s k) (find-cps (cdr v) s k) s k) #f) #f)
-                    )))
+                  (λ (v)
+                    (unify-cps (find-cps (cdr u) s k) (find-cps (cdr v) s k) s
+                               (λ (w)
+                                 (if (pair? v)
+                                     (if v
+                                         (k w)
+                                         (k #f))
+                                     #f))))))
       (else #f))))
 
 (define M-cps
