@@ -1,14 +1,10 @@
 #lang racket
 
-; (+ 2 (call/cc
-;       (λ (k)
-;         (+ 30 (k 10)))))
-
 ; Complete the following definition of last-non-zero, a function which takes a list of numbers and return the last cdr whose car is 0. In other words, when starting from the right of the list, it should be all numbers before the first 0 is reached. See the test cases below and student test file for examples. Your solution should be naturally recursive, and should not contain any calls to member-like operations, nor should you be reversing the list.
 (define last-non-zero
   (λ (ls)
     (let/cc k ; k captures nothing, meaning that this continuation simply
-      ; "throws away" previous context.
+      ; "pitchs away" previous context.
       (letrec
           ((last-non-zero
             (λ (ls)
@@ -45,74 +41,126 @@
       [`(,rator ,rand)
        `(app ,(lex rator ls) ,(lex rand ls))])))
 
+(define cont-sub1
+  (λ (k^)
+    `(cont-sub1 ,k^)))
+
+(define cont-zero
+  (λ (k^)
+    `(cont-zero ,k^)))
+
+(define cont-if
+  (λ (conseq^ alt^ env^ k^)
+    `(cont-if ,conseq^ ,alt^ ,env^ ,k^)))
+
+(define cont-pitch
+  (λ (v-exp env^)
+    `(cont-pitch ,v-exp ,env^)))
+
+(define cont-let
+  (λ (body^ env^ k^)
+    `(cont-let ,body^ ,env^ ,k^)))
+
+(define cont-mult1
+  (λ (x2^ env^ k^)
+    `(cont-mult1 ,x2^ ,env^ ,k^)))
+
+(define cont-mult2
+  (λ (lhs k^)
+    `(cont-mult2 ,lhs ,k^)))
+
+(define cont-app1
+  (λ (rand^ env^ k^)
+    `(cont-app1 ,rand^ ,env^ ,k^)))
+
+(define cont-app2
+  (λ (rator k^)
+    `(cont-app2 ,rator ,k^)))
+
 (define value-of-cps
   (lambda (expr env k)
     (match expr
-      [`(const ,expr) (k expr)]
+      [`(const ,expr) (apply-k k expr)]
       [`(mult ,x1 ,x2)
-       (value-of-cps x1 env
-                     (λ (lhs)
-                       (value-of-cps x2 env
-                                     (λ (rhs)
-                                       (k (* lhs rhs))))))]
+       (value-of-cps x1 env (cont-mult1 x2 env k))]
       [`(sub1 ,x)
-       (value-of-cps x env (λ (v) (k (sub1 v))))]
+       (value-of-cps x env (cont-sub1 k))]
       [`(zero ,x)
-       (value-of-cps x env (λ (v) (k (zero? v))))]
+       (value-of-cps x env (cont-zero k))]
       [`(if ,test ,conseq ,alt)
-       (value-of-cps test env (λ (test)
-                                (if test
-                                    (value-of-cps conseq env k)
-                                    (value-of-cps alt env k))))]
+       (value-of-cps test env (cont-if conseq alt env k))]
       [`(catch ,body)
-       (value-of-cps body
-                     (λ (y k^)
-                       (if (zero? y)
-                           (k^ k)
-                           (env (sub1 y) k^)))
+       (value-of-cps body (extend-env env k)
                      ; eta-reduction
                      k)]
       [`(pitch ,k-exp ,v-exp)
-       (value-of-cps k-exp env
-                     (λ (k^)
-                       (value-of-cps v-exp env
-                                     (λ (v)
-                                       (k^ v)))))]
+       (value-of-cps k-exp env (cont-pitch v-exp env))]
       [`(let ,e ,body)
-       (value-of-cps e env
-                     (λ (v)
-                       (value-of-cps body
-                                     (λ (y k^)
-                                       (if (zero? y)
-                                           (k^ v)
-                                           (env (sub1 y) k^)))
-                                     k)))]
-      [`(var ,y) (env y k)]
+       (value-of-cps e env (cont-let body env k))]
+      [`(var ,y) (apply-env env y k)]
       [`(lambda ,body)
-       (k (λ (a k^)
-            (value-of-cps body
-                          (λ (y k^^)
-                            (if (zero? y)
-                                (k^^ a)
-                                (env (sub1 y) k^^)))
-                          k^)))]
+       (apply-k k (make-closure body env))]
       [`(app ,rator ,rand)
-       (value-of-cps rator env (λ (rator)
-                                 (value-of-cps rand env
-                                               (λ (rand)
-                                                 (rator rand k)))))]
+       (value-of-cps rator env (cont-app1 rand env k))]
       )))
 
 (define empty-env
   (λ ()
-    (λ (y k)
-      (error 'value-of-cps "unbound indentifier" ~a y))))
+    `(empty-env)))
 
 (define empty-k
   (λ ()
-    (λ (v) v)))
+    `(empty-k)))
+
+(define apply-env
+  (λ (env y k^)
+    (match env
+      [`(empty-env) (error "apply-env: Unbound variable ~a" y)]
+      [`(extend-env ,env^ ,y^) (if (zero? y)
+                                   (apply-k k^ y^)
+                                   (apply-env env^ (sub1 y) k^))])))
+
+(define make-closure
+  (λ (body env)
+    `(make-closure ,body ,env)))
+
+(define apply-closure
+  (λ (clos v k)
+    (match clos
+      [`(make-closure ,body ,env)
+       (value-of-cps body (extend-env env v) k)]
+      )))
+
+(define apply-k
+  (λ (k v)
+    (match k
+      [`(cont-zero ,k^) (apply-k k^ (zero? v))]
+      [`(cont-sub1 ,k^) (apply-k k^ (sub1 v))]
+      [`(cont-if ,conseq^ ,alt^ ,env^ ,k^)
+       (if v
+           (value-of-cps conseq^ env^ k^)
+           (value-of-cps alt^ env^ k^))]
+      [`(cont-let ,body^ ,env^ ,k^)
+       (value-of-cps body^ (extend-env env^ v) k^)]
+      [`(cont-pitch ,v-exp ,env^)
+       (value-of-cps v-exp env^ v)]
+      [`(cont-mult1 ,x2^ ,env^ ,k^)
+       (value-of-cps x2^ env^ (cont-mult2 v k^))]
+      [`(cont-mult2 ,lhs ,k^)
+       (apply-k k^ (* lhs v))]
+      [`(cont-app1 ,rand^ ,env^, k^)
+       (value-of-cps rand^ env^ (cont-app2 v k^))]
+      [`(cont-app2 ,rator^ ,k^)
+       (apply-closure rator^ v k^)]
+      [`(empty-k) v]
+      )))
+
+(define extend-env
+  (λ (env^ y^)
+    `(extend-env ,env^ ,y^)))
 
 (require rackunit)
+
 (check-equal? (value-of-cps '(const 5) (empty-env) (empty-k)) 5)
 (check-equal? (value-of-cps '(mult (const 5) (const 5)) (empty-env) (empty-k)) 25)
 (check-equal? (value-of-cps '(sub1 (sub1 (const 5))) (empty-env) (empty-k)) 3)
