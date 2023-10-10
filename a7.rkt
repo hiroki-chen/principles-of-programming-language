@@ -33,14 +33,15 @@
   (λ (e ls)
     (match e
       [`,y #:when (symbol? y)
-           (index y ls)]
-      [`(λ (,x) ,body) #:when (symbol? x)
-                       `(λ ,(lex body (cons x ls)))]
+           `(var ,(index y ls))]
+      [`,y #:when (number? y)
+           `(const ,y)]
+      [`(lambda (,x) ,body) #:when (symbol? x)
+                            `(lambda ,(lex body (cons x ls)))]
       [`(zero? ,nexp) `(zero ,(lex nexp ls))]
       [`(* ,nexp1 ,nexp2) `(mult ,(lex nexp1 ls) ,(lex nexp2 ls))]
       [`(catch ,cname ,cexp) `(catch ,(lex cexp (cons cname ls)))]
-      [`(pitch ,exp1 ,cexp) #:when (symbol? cexp)
-                            `(pitch ,(lex exp1 ls) ,(lex cexp ls))]
+      [`(pitch ,exp1 ,cexp) `(pitch ,(lex exp1 ls) ,(lex cexp ls))]
       [`(,rator ,rand)
        `(app ,(lex rator ls) ,(lex rand ls))])))
 
