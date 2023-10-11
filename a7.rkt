@@ -192,3 +192,57 @@
                             (empty-env)
                             (empty-k))
               1)
+
+(define-syntax cons$
+  (syntax-rules ()
+    ((cons$ x y) (cons x (delay y)))))
+
+(define car$ car)
+
+(define cdr$
+  (lambda ($) (force (cdr $))))
+
+(define inf-1s (cons$ 1 inf-1s))
+
+(define take$
+  (λ (n $)
+    (cond
+      ((zero? n) '())
+      (else (cons (car$ $)
+                  (let ((n- (sub1 n)))
+                    (cond
+                      ((zero? n-) '())
+                      (else (take$ n- (cdr$ $))))))))))
+
+(define worlds-worst-random
+  (delay (random 4)))
+
+; delay creates a promise that will be evaluated when force is called
+; force evaluates a promise
+; So, we have a list whose cdr is a promise that will be evaluated when force is called.
+
+; A list of tribonacci numbers (cdr is a promise that will be evaluated when force is called)
+; (define trib$
+;   (cons$ 0 (cons$ 0 (cons$ 1 (map$ + trib$ (map$ + (cdr$ trib$) (cdr$ (cdr$ trib$))))))))
+
+(define trib-cps
+  (λ (n k)
+    (cond
+      ((zero? n) (k 0))
+      ((zero? (sub1 n)) (k 1))
+      ((zero? (sub1 (sub1 n))) (k 1))
+      (else
+       (trib-cps (sub1 n)
+                 (λ (x)
+                   (trib-cps (sub1 (sub1 n))
+                             (λ (y)
+                               (trib-cps (sub1 (sub1 (sub1 n)))
+                                         (λ (z)
+                                           (k (+ x y z))))))))))))
+
+
+(define trib$
+  (cons$ 0
+         (cons$ 1
+                (cons$ 1
+                       '()))))
