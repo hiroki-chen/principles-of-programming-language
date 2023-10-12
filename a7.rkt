@@ -205,7 +205,7 @@
 (define inf-1s (cons$ 1 inf-1s))
 
 (define take$
-  (λ (n $)
+  (lambda (n $)
     (cond
       ((zero? n) '())
       (else (cons (car$ $)
@@ -213,9 +213,6 @@
                     (cond
                       ((zero? n-) '())
                       (else (take$ n- (cdr$ $))))))))))
-
-(define worlds-worst-random
-  (delay (random 4)))
 
 ; delay creates a promise that will be evaluated when force is called
 ; force evaluates a promise
@@ -242,7 +239,15 @@
 
 
 (define trib$
-  (cons$ 0
-         (cons$ 1
-                (cons$ 1
-                       '()))))
+  (letrec ([func (λ (ls)
+                   (cond
+                     ((null? ls) '())
+                     (else (cons$ (+ (car$ ls) (car$ (cdr$ ls)) (car$ (cdr$ (cdr$ ls))))
+                                  (func (cdr$ ls))))
+                     ))])
+    (cons$ 0 (cons$ 1 (cons$ 1 (func trib$))))))
+
+(take$ 7 trib$)
+
+
+(car$ (cdr$ trib$))
