@@ -239,15 +239,11 @@
 
 
 (define trib$
-  (letrec ([func (λ (ls)
-                   (cond
-                     ((null? ls) '())
-                     (else (cons$ (+ (car$ ls) (car$ (cdr$ ls)) (car$ (cdr$ (cdr$ ls))))
-                                  (func (cdr$ ls))))
-                     ))])
+  (letrec ([func (λ (a b c)
+                    (cons$ (+ (car$ a) (car$ b) (car$ c))
+                           (func (cdr$ a) (cdr$ b) (cdr$ a))
+                   ))])
     (cons$ 0 (cons$ 1 (cons$ 1 (func trib$))))))
 
-(take$ 7 trib$)
-
-
-(car$ (cdr$ trib$))
+ (car$ trib$)
+ (car$ (cdr$ trib$))
