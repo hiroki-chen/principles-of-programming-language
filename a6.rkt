@@ -175,3 +175,4 @@
   (let ([strange^ (((strange-cps 5 (empty-k)) 6 (empty-k)) 7 (empty-k))])
     (((strange^ 8 (empty-k)) 9 (empty-k)) 10 (empty-k))))
 
+(use-of-M-cps)
