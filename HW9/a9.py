@@ -8,8 +8,6 @@ g__e_: object = None
 g__env_: object = None
 g__k_: object = None
 g__v_: object = None
-g__clos_: object = None
-g__y_: object = None
 
 # Define the program counter
 g__pc_ : Callable[[], Any] = None
@@ -176,10 +174,9 @@ def expr_app(rator, rand):
 # Generate functions
 def apply_k():
     global g__pc_
-    global g__clos_
+    global g__e_
     global g__k_
     global g__env_
-    global g__e_
     global g__v_
 
     match g__k_.type:
@@ -254,7 +251,7 @@ def apply_k():
             rator_cap = g__k_.rator
             k_cap = g__k_.k_cap
             g__k_ = k_cap
-            g__clos_ = rator_cap
+            g__e_ = rator_cap
             g__pc_ = apply_closure
 
         case union_t.kt.empty:
@@ -267,10 +264,10 @@ def apply_closure():
     global g__env_
     global g__v_
 
-    match g__clos_.type:
+    match g__e_.type:
         case union_t.clos.closure:
-            body = g__clos_.body
-            env = g__clos_.env
+            body = g__e_.body
+            env = g__e_.env
             g__env_ = envr_extend(env, g__v_)
             g__e_ = body
             g__pc_ = value_of_cps
@@ -278,21 +275,20 @@ def apply_closure():
 def apply_env():
     global g__pc_
     global g__env_
-    global g__y_
     global g__v_
 
     match g__env_.type:
         case union_t.envr.empty:
-            raise RuntimeError("*y*")
+            raise RuntimeError("*v*")
 
         case union_t.envr.extend:
             env_cap = g__env_.env
             y_cap = g__env_.y
-            if (g__y_ == 0):
+            if (g__v_ == 0):
                 g__v_ = y_cap
                 g__pc_ = apply_k
             else:
-                g__y_ = (g__y_ - 1)
+                g__v_ = (g__v_ - 1)
                 g__env_ = env_cap
                 g__pc_ = apply_env
 
@@ -302,7 +298,6 @@ def value_of_cps():
     global g__k_
     global g__env_
     global g__v_
-    global g__y_
 
     match g__e_.type:
         case union_t.expr.const:
@@ -359,7 +354,7 @@ def value_of_cps():
 
         case union_t.expr.var:
             y = g__e_.n
-            g__y_ = y
+            g__v_ = y
             g__pc_ = apply_env
 
         case union_t.expr._lambda:
@@ -393,7 +388,7 @@ if __name__ == '__main__':
         pass
     jump_mount_tram = greenlet(mount_tram)
     _dismount_blank = greenlet(_blank)
-    g__e_ = expr_let(    expr_lambda(    expr_lambda(    expr_if(    expr_zero(    expr_var(0)),     expr_const(1),     expr_mult(    expr_var(0),     expr_app(    expr_app(    expr_var(1),     expr_var(1)),     expr_subr1(    expr_var(0))))))),     expr_mult(    expr_catch(    expr_app(    expr_app(    expr_var(1),     expr_var(1)),     expr_pitch(    expr_var(0),     expr_app(    expr_app(    expr_var(1),     expr_var(1)),     expr_const(4))))),     expr_const(5)))
+    g__e_ = expr_let(    expr_lambda(    expr_lambda(    expr_if(    expr_zero(    expr_var(0)),     expr_const(1),     expr_mult(    expr_var(0),     expr_app(    expr_app(    expr_var(1),     expr_var(1)),     expr_subr1(    expr_var(0))))))),     expr_mult(    expr_catch(    expr_app(    expr_app(    expr_var(1),     expr_var(1)),     expr_pitch(    expr_var(0),     expr_app(    expr_app(    expr_var(1),     expr_var(1)),     expr_const(5))))),     expr_const(6)))
     g__env_ = envr_empty()
     g__pc_ = value_of_cps
     jump_mount_tram.switch()

@@ -1,6 +1,6 @@
-(define-registers *e* *env* *k* *v* *clos* *y*)
+(define-registers *e* *env* *k* *v*)
 (define-program-counter *pc*)
-
+ 
 ; Becomes expr_xxx
 (define-union expr
   (const cexp)
@@ -77,7 +77,7 @@
                  (set! *pc* value-of-cps))]
               [(var y)
                (begin
-                 (set! *y* y)
+                 (set! *v* y)
                  (set! *pc* apply-env))]
               [(lambda body)
                (begin
@@ -92,18 +92,18 @@
 
 (define-label apply-env
   (union-case *env* envr
-              [(empty) (error "apply-env: Unbound variable" *y*)]
-              [(extend env^ y^) (if (zero? *y*)
+              [(empty) (error "apply-env: Unbound variable" *v*)]
+              [(extend env^ y^) (if (zero? *v*)
                                     (begin
                                       (set! *v* y^)
                                       (set! *pc* apply-k))
                                     (begin
-                                      (set! *y* (sub1 *y*))
+                                      (set! *v* (sub1 *v*))
                                       (set! *env* env^)
                                       (set! *pc* apply-env)))]))
 
 (define-label apply-closure
-  (union-case *clos* clos
+  (union-case *e* clos
               [(closure body env)
                (begin
                  (set! *env* (envr_extend env *v*))
@@ -162,7 +162,7 @@
               [(app2 rator^ k^)
                (begin
                  (set! *k* k^)
-                 (set! *clos* rator^)
+                 (set! *e* rator^)
                  (set! *pc* apply-closure))]
               [(empty jumpout) (dismount-trampoline jumpout)]))
 
@@ -187,8 +187,8 @@
                    (expr_var 0)
                    (expr_app
                     (expr_app (expr_var 1) (expr_var 1))
-                    (expr_const 4)))))
-                (expr_const 5))))
+                    (expr_const 5)))))
+                (expr_const 6))))
     (set! *env* (envr_empty))
     (set! *pc* value-of-cps)
     (mount-trampoline kt_empty *k* *pc*)
