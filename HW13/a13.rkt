@@ -129,9 +129,27 @@
 (define traverse-state/sum
   (traverse inj-state bind-state state/sum))
 
+; I have attached the Coq proof of the monad laws for the list monad.
+; Link: https://github.com/hiroki-chen/Software-Foundations/blob/main/monad.v
+; You can check it by COQC.
+;
+; The proof for associativity is as follows:
+; assoc : forall {A B C:Type} (m:M A) (f:A -> M B) (g:B -> M C),
+;     bind (bind m f) g = bind m (fun x => bind (f x) g);
+;     (m >>= f) >>= g = m >>= (fun x => (f x >>= g))
+;
+; The proof is by induction on m (which is a list) as nil or cons m :: t'.
+;   => Hypothesis: (m >>= f) >>= g = m >>=  (f x >>= g)
+; If m is nil, the proof is trivial by reflexivity on null = null since Lists enjoy setoid properties.
+; If m is cons, the proof is by induction on (f x).
+;   - if (f x) = null. Then we have the inductive hypothesis by induction on m. The proof is done.
+;   - if (f x) = cons. Goal => g a0 ++ (l ++ (m >>= f)) >>= g = (g a0 ++ (l >>= g)) ++ m >>= ((f x) >>= g)
+;We apply the inductive hypothesis and rewrite the term. Then the proof is reduced
+;                      to the proof of the associativity of the list.
+
 (define empty-env
   (λ ()
-    (λ () (error "error"))))
+    (λ (y) (error "error"))))
 
 (define apply-env
   (λ (env y)
@@ -145,8 +163,10 @@
           (apply-env env y)))))
 
 (define apply-proc
-  (λ (clos arg)
-    (clos arg)))
+  (λ (clos v)
+    (clos v)))
+
+
 
 (define closure
   (λ (x body env)
@@ -176,7 +196,7 @@
       [`(return ,k-exp ,v-exp) (go-on (k <- (value-of-cps k-exp env))
                                       (v <- (value-of-cps v-exp env))
                                       (k v))]
-      [`(lambda (,id) ,body) (inj-k (closure id body env))]
+      [`(lambda (,id) ,body)  (inj-k (closure id body env))]
       [`(,rator ,rand) (go-on (func <- (value-of-cps rator env))
                               (arg <- (value-of-cps rand env))
                               (inj-k (apply-proc func arg)))])))
