@@ -114,3 +114,62 @@
 )))
 
 (nth Nat (:: 1 (:: 2 (:: 3 nil))) 0 2)
+
+(claim vec-second
+  (Π ((E U) (n Nat)); A proof that n is at least 2
+    (→ (Vec E (add1 (add1 n)))
+        E)
+  )
+)
+
+(define vec-second
+  (λ (E n)
+    (λ (v) (head (tail v)))
+  )
+)
+
+(claim max
+  (-> Nat Nat Nat)
+)
+
+(define max
+  (λ (a)
+    (rec-Nat a
+      (the (-> Nat Nat) (λ (b) b))
+      (λ (a-1 res)
+        (λ (b)
+          (which-Nat b
+            (add1 a-1)
+            (λ (b-1)
+              (add1 (res b-1))
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+(max 2 1)
+
+(claim ack
+  (-> Nat Nat Nat)
+)
+
+(define ack
+  (λ (n)
+    (rec-Nat n
+      (the (-> Nat Nat) (λ (m) (add1 m)))
+      (λ (n-1 res)
+        (λ (m)
+          (rec-Nat m
+            (res 1)
+            (λ (m-1 res*)
+              (res res*)
+            )
+          )
+        )
+      )
+    )
+  )
+)
